@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistent AI Universitar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Asistent AI Universitar</h1>
+            <div class="subject-selector">
+                <label>Materie:</label>
+                <select id="subject-select">
+                    {% for subject in subjects %}
+                    <option value="{{ subject }}" {% if subject==current_subject %}selected{% endif %}>
+                        {{ subject }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="chat-box" class="chat-box">
+            <div class="message bot-message">
+                Salut! Sunt asistentul tău AI. Întreabă-mă orice despre {{ current_subject }}.
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Scrie mesajul tău..." />
+            <button id="send-btn">Trimite</button>
+        </div>
+
+        <div id="loading" class="loading">Procesez...</div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const subjectSelect = document.getElementById('subject-select');
+        const loading = document.getElementById('loading');
+
+        // Send message on button click
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Send message on Enter key
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Change subject
+        subjectSelect.addEventListener('change', changeSubject);
+
+        function addMessage(message, isBot = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
+            messageDiv.textContent = message;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, false);
+            userInput.value = '';
+
+            // Show loading
+            loading.style.display = 'block';
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addMessage(data.response, true);
+                } else {
+                    addMessage('Eroare: ' + (data.error || 'Eroare necunoscută'), true);
+                }
+            } catch (error) {
+                addMessage('Eroare: Nu m-am putut conecta la server', true);
+            } finally {
+                loading.style.display = 'none';
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        async function changeSubject() {
+            const newSubject = subjectSelect.value;
+            loading.style.display = 'block';
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch('/change_subject', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ subject: newSubject })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addMessage(`Am trecut la ${newSubject}. Cu ce te pot ajuta?`, true);
+                } else {
+                    addMessage('Eroare la schimbarea materiei: ' + (data.error || 'Eroare necunoscută'), true);
+                }
+            } catch (error) {
+                addMessage('Eroare: Nu m-am putut conecta la server', true);
+            } finally {
+                loading.style.display = 'none';
+                sendBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>
