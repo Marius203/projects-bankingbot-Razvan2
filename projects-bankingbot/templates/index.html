@@ -12,15 +12,20 @@
     <div class="container">
         <div class="header">
             <h1>Asistent AI Universitar</h1>
-            <div class="subject-selector">
-                <label>Materie:</label>
-                <select id="subject-select">
-                    {% for subject in subjects %}
-                    <option value="{{ subject }}" {% if subject==current_subject %}selected{% endif %}>
-                        {{ subject }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <div class="header-controls">
+                <div class="subject-selector">
+                    <label>Materie:</label>
+                    <select id="subject-select">
+                        {% for subject in subjects %}
+                        <option value="{{ subject }}" {% if subject==current_subject %}selected{% endif %}>
+                            {{ subject }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button id="new-conversation-btn" class="new-conversation-button">🔄 Conversație Nouă</button>
+                <button id="upload-btn" class="upload-button">📄 Încarcă Document</button>
+                <button id="view-files-btn" class="view-files-button">📂 Fișiere</button>
             </div>
         </div>
 
@@ -36,6 +41,60 @@
         </div>
 
         <div id="loading" class="loading">Procesez...</div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Încarcă Document PDF</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="upload-form">
+                    <div class="form-group">
+                        <label>Materie:</label>
+                        <select id="upload-subject">
+                            {% for subject in subjects %}
+                            <option value="{{ subject }}" {% if subject==current_subject %}selected{% endif %}>
+                                {{ subject }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fișier PDF:</label>
+                        <input type="file" id="pdf-file" accept=".pdf" />
+                        <span id="file-name" class="file-name"></span>
+                    </div>
+                    <button type="submit" id="upload-submit-btn">Încarcă</button>
+                </form>
+
+                <!-- Progress Section -->
+                <div id="upload-progress-section" class="progress-section" style="display:none;">
+                    <div class="progress-bar-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                        <span id="progress-percent" class="progress-percent">0%</span>
+                    </div>
+                    <p id="progress-message" class="progress-message">Inițializare...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Files Modal -->
+    <div id="files-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Fișiere Încărcate</h2>
+                <span class="close" id="files-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="files-list" class="files-list">
+                    <p class="loading-files">Încărcare fișiere...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -129,6 +188,227 @@
             } finally {
                 loading.style.display = 'none';
                 sendBtn.disabled = false;
+            }
+        }
+
+        // Upload functionality
+        const uploadBtn = document.getElementById('upload-btn');
+        const uploadModal = document.getElementById('upload-modal');
+        const closeModal = document.querySelector('.close');
+        const uploadForm = document.getElementById('upload-form');
+        const pdfFile = document.getElementById('pdf-file');
+        const fileName = document.getElementById('file-name');
+        const uploadProgressSection = document.getElementById('upload-progress-section');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        const progressMessage = document.getElementById('progress-message');
+
+        let currentTaskId = null;
+        let pollingInterval = null;
+
+        // Show modal
+        uploadBtn.addEventListener('click', () => {
+            uploadModal.style.display = 'block';
+            uploadProgressSection.style.display = 'none';
+            uploadForm.style.display = 'block';
+            pdfFile.value = '';
+            fileName.textContent = '';
+        });
+
+        // Close modal
+        closeModal.addEventListener('click', () => {
+            uploadModal.style.display = 'none';
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+        });
+
+        // Click outside modal to close
+        window.addEventListener('click', (e) => {
+            if (e.target === uploadModal) {
+                uploadModal.style.display = 'none';
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                }
+            }
+        });
+
+        // Show selected file name
+        pdfFile.addEventListener('change', () => {
+            if (pdfFile.files.length > 0) {
+                fileName.textContent = pdfFile.files[0].name;
+            } else {
+                fileName.textContent = '';
+            }
+        });
+
+        // Handle upload
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!pdfFile.files.length) {
+                alert('Selectează un fișier PDF');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', pdfFile.files[0]);
+            formData.append('subject', document.getElementById('upload-subject').value);
+
+            // Hide form, show progress
+            uploadForm.style.display = 'none';
+            uploadProgressSection.style.display = 'block';
+            updateProgress(0, 'Încărcare fișier...');
+
+            try {
+                const response = await fetch('/upload_document', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    currentTaskId = data.task_id;
+                    startPolling();
+                } else {
+                    alert('Eroare: ' + (data.error || 'Eroare la încărcare'));
+                    uploadProgressSection.style.display = 'none';
+                    uploadForm.style.display = 'block';
+                }
+            } catch (error) {
+                alert('Eroare: Nu m-am putut conecta la server');
+                uploadProgressSection.style.display = 'none';
+                uploadForm.style.display = 'block';
+            }
+        });
+
+        function updateProgress(percent, message) {
+            progressBar.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+            progressMessage.textContent = message;
+        }
+
+        function startPolling() {
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/upload_progress/${currentTaskId}`);
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        updateProgress(data.progress, data.message);
+
+                        if (data.status === 'done') {
+                            clearInterval(pollingInterval);
+                            setTimeout(() => {
+                                uploadModal.style.display = 'none';
+                                addMessage('✓ ' + data.message, true);
+                            }, 1500);
+                        } else if (data.status === 'error') {
+                            clearInterval(pollingInterval);
+                            alert('Eroare: ' + data.error);
+                            uploadProgressSection.style.display = 'none';
+                            uploadForm.style.display = 'block';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 500); // Poll every 500ms
+        }
+
+        // New Conversation functionality
+        const newConversationBtn = document.getElementById('new-conversation-btn');
+        newConversationBtn.addEventListener('click', () => {
+            if (confirm('Sigur vrei să ștergi conversația curentă?')) {
+                // Clear all messages except the initial bot message
+                chatBox.innerHTML = '<div class="message bot-message">Salut! Sunt asistentul tău AI. Întreabă-mă orice despre ' + subjectSelect.value + '.</div>';
+            }
+        });
+
+        // Files modal functionality
+        const viewFilesBtn = document.getElementById('view-files-btn');
+        const filesModal = document.getElementById('files-modal');
+        const filesClose = document.getElementById('files-close');
+        const filesList = document.getElementById('files-list');
+
+        viewFilesBtn.addEventListener('click', () => {
+            filesModal.style.display = 'block';
+            loadUploadedFiles();
+        });
+
+        filesClose.addEventListener('click', () => {
+            filesModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === filesModal) {
+                filesModal.style.display = 'none';
+            }
+        });
+
+        async function loadUploadedFiles() {
+            const subject = subjectSelect.value;
+            filesList.innerHTML = '<p class="loading-files">Încărcare fișiere...</p>';
+
+            try {
+                const response = await fetch(`/uploaded_files/${subject}`);
+                const data = await response.json();
+
+                if (response.ok && data.files) {
+                    if (data.files.length === 0) {
+                        filesList.innerHTML = '<p class="no-files">Nu există fișiere încărcate pentru această materie.</p>';
+                    } else {
+                        let filesHtml = '';
+                        data.files.forEach(file => {
+                            const date = new Date(file.uploaded_date * 1000).toLocaleDateString('ro-RO');
+                            filesHtml += `
+                                <div class="file-item">
+                                    <div class="file-info">
+                                        <span class="file-name">📄 ${file.name}</span>
+                                        <span class="file-meta">${file.size_mb} MB • ${date}</span>
+                                    </div>
+                                    <button class="delete-file-btn" data-filename="${file.name}">🗑️ Șterge</button>
+                                </div>
+                            `;
+                        });
+                        filesList.innerHTML = filesHtml;
+
+                        // Add delete functionality
+                        document.querySelectorAll('.delete-file-btn').forEach(btn => {
+                            btn.addEventListener('click', () => deleteFile(btn.dataset.filename));
+                        });
+                    }
+                } else {
+                    filesList.innerHTML = '<p class="error-files">Eroare la încărcarea fișierelor</p>';
+                }
+            } catch (error) {
+                filesList.innerHTML = '<p class="error-files">Eroare la încărcarea fișierelor</p>';
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm(`Sigur vrei să ștergi ${filename}?`)) {
+                return;
+            }
+
+            const subject = subjectSelect.value;
+
+            try {
+                const response = await fetch(`/delete_file/${subject}/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    loadUploadedFiles(); // Reload the list
+                    addMessage(`✓ ${filename} a fost șters`, true);
+                } else {
+                    alert('Eroare: ' + (data.error || 'Nu s-a putut șterge fișierul'));
+                }
+            } catch (error) {
+                alert('Eroare: Nu m-am putut conecta la server');
             }
         }
     </script>
