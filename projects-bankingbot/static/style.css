@@ -5,36 +5,45 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    background: #000000;
+    background-image: radial-gradient(circle at 50% 0%, rgba(17, 24, 39, 0.7), transparent 50%),
+                      radial-gradient(circle at 80% 80%, rgba(17, 24, 39, 0.5), transparent 50%);
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    color: #ffffff;
 }
 
 .container {
     width: 90%;
-    max-width: 800px;
+    max-width: 900px;
     height: 90vh;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    background: rgba(17, 17, 17, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .header {
-    padding: 20px;
-    border-bottom: 2px solid #eee;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .header h1 {
-    font-size: 24px;
-    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.5px;
 }
 
 .subject-selector {
@@ -44,143 +53,222 @@ body {
 }
 
 .subject-selector label {
-    font-weight: bold;
+    font-weight: 500;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .subject-selector select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
     font-size: 14px;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.subject-selector select:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.subject-selector select:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .chat-box {
     flex: 1;
-    padding: 20px;
+    padding: 24px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 16px;
+}
+
+.chat-box::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-box::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.chat-box::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .message {
-    padding: 12px 16px;
-    border-radius: 8px;
-    max-width: 70%;
+    padding: 14px 18px;
+    border-radius: 12px;
+    max-width: 75%;
     word-wrap: break-word;
+    font-size: 14px;
+    line-height: 1.6;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .user-message {
-    background-color: #007bff;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     align-self: flex-end;
     margin-left: auto;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .bot-message {
-    background-color: #f0f0f0;
-    color: #333;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
     align-self: flex-start;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .input-area {
-    padding: 20px;
-    border-top: 2px solid #eee;
+    padding: 20px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    gap: 10px;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .input-area input {
     flex: 1;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
     font-size: 14px;
+    color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.input-area input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .input-area input:focus {
     outline: none;
-    border-color: #007bff;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .input-area button {
-    padding: 12px 24px;
-    background-color: #007bff;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: bold;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .input-area button:hover {
-    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.input-area button:active {
+    transform: translateY(0);
 }
 
 .input-area button:disabled {
-    background-color: #ccc;
+    background: rgba(255, 255, 255, 0.1);
     cursor: not-allowed;
+    opacity: 0.5;
+    box-shadow: none;
 }
 
 .loading {
     display: none;
     text-align: center;
     padding: 10px;
-    color: #666;
+    color: rgba(255, 255, 255, 0.5);
     font-style: italic;
+    font-size: 14px;
 }
 
 /* Header controls */
 .header-controls {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 
 .new-conversation-button {
     padding: 8px 16px;
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .new-conversation-button:hover {
-    background-color: #5a6268;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
 }
 
 .upload-button {
     padding: 8px 16px;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 5px;
+    background: rgba(34, 197, 94, 0.1);
+    color: rgb(134, 239, 172);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .upload-button:hover {
-    background-color: #218838;
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.5);
+    transform: translateY(-1px);
 }
 
 .view-files-button {
     padding: 8px 16px;
-    background-color: #17a2b8;
-    color: white;
-    border: none;
-    border-radius: 5px;
+    background: rgba(59, 130, 246, 0.1);
+    color: rgb(147, 197, 253);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .view-files-button:hover {
-    background-color: #138496;
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-1px);
 }
 
 /* Modal styles */
@@ -192,22 +280,25 @@ body {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
 }
 
 .modal-content {
-    background-color: white;
+    background: rgba(17, 17, 17, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     margin: 10% auto;
     padding: 0;
-    border-radius: 10px;
+    border-radius: 12px;
     width: 90%;
     max-width: 500px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
 }
 
 .modal-header {
-    padding: 20px;
-    border-bottom: 2px solid #eee;
+    padding: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -215,23 +306,33 @@ body {
 
 .modal-header h2 {
     margin: 0;
-    font-size: 20px;
-    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.3px;
 }
 
 .close {
-    color: #aaa;
-    font-size: 28px;
-    font-weight: bold;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 24px;
+    font-weight: 300;
     cursor: pointer;
+    transition: all 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
 }
 
 .close:hover {
-    color: #000;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 24px;
 }
 
 /* Form styles */
@@ -241,41 +342,62 @@ body {
 
 .form-group label {
     display: block;
-    margin-bottom: 8px;
-    font-weight: bold;
-    color: #333;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
 }
 
 .form-group select,
 .form-group input[type="file"] {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
     font-size: 14px;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.form-group select:hover,
+.form-group input[type="file"]:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.form-group select:focus,
+.form-group input[type="file"]:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .file-name {
     display: block;
-    margin-top: 8px;
-    color: #666;
+    margin-top: 10px;
+    color: rgba(255, 255, 255, 0.6);
     font-size: 13px;
 }
 
 #upload-form button[type="submit"] {
     width: 100%;
-    padding: 12px;
-    background-color: #007bff;
+    padding: 14px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    font-weight: bold;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 #upload-form button[type="submit"]:hover {
-    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
 /* Progress section */
@@ -286,34 +408,34 @@ body {
 .progress-bar-container {
     position: relative;
     width: 100%;
-    height: 30px;
-    background-color: #f0f0f0;
-    border-radius: 15px;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 15px;
+    margin-bottom: 16px;
 }
 
 .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #007bff, #0056b3);
-    border-radius: 15px;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 8px;
     transition: width 0.3s ease;
     width: 0%;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
 .progress-percent {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-weight: bold;
-    font-size: 14px;
-    color: #333;
+    top: -28px;
+    right: 0;
+    font-weight: 600;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .progress-message {
     text-align: center;
-    color: #666;
+    color: rgba(255, 255, 255, 0.6);
     font-size: 14px;
     margin: 0;
 }
@@ -324,17 +446,34 @@ body {
     overflow-y: auto;
 }
 
+.files-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.files-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.files-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.files-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .file-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    transition: background-color 0.2s;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
 }
 
 .file-item:hover {
-    background-color: #f9f9f9;
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .file-item:last-child {
@@ -344,44 +483,49 @@ body {
 .file-info {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
 }
 
 .file-name {
     font-size: 14px;
-    font-weight: bold;
-    color: #333;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .file-meta {
     font-size: 12px;
-    color: #666;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .delete-file-btn {
-    padding: 6px 12px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 5px;
+    padding: 7px 14px;
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(252, 165, 165);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
     white-space: nowrap;
+    transition: all 0.2s ease;
+    font-weight: 500;
 }
 
 .delete-file-btn:hover {
-    background-color: #c82333;
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    transform: translateY(-1px);
 }
 
 .loading-files,
 .no-files,
 .error-files {
     text-align: center;
-    padding: 30px;
-    color: #666;
+    padding: 40px 20px;
+    color: rgba(255, 255, 255, 0.5);
     font-style: italic;
+    font-size: 14px;
 }
 
 .error-files {
-    color: #dc3545;
+    color: rgb(252, 165, 165);
 }
