@@ -7,6 +7,9 @@ import config
 import os
 import uuid
 import threading
+import chat_history
+
+chat_history.init_db()
 
 app = Flask(__name__)
 CORS(app)
@@ -37,29 +40,33 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Handle chat messages"""
-    global rag_chain
+    data = request.get_json() or {}
+    session_id = data.get('session_id') or str(uuid.uuid4())
+    message = (data.get('message') or "").strip()
+    if not message:
+        return jsonify({'error':'Empty message'}), 400
+
+    chat_history.save_message(session_id, 'user', message)
 
     try:
-        data = request.json
-        message = data.get('message', '').strip()
-
-        if not message:
-            return jsonify({'error': 'Empty message'}), 400
-
-        if rag_chain is None:
-            return jsonify({'error': 'RAG system not initialized'}), 500
-
-        # Get AI response
-        response = rag_chain.invoke(message)
-
-        return jsonify({
-            'response': response,
-            'subject': current_subject
-        })
-
+        if rag_chain is not None:
+            ai_resp = rag_chain.invoke(message)  # keep your existing call
+            ai_text = str(ai_resp)
+        else:
+            ai_text = f"Echo: {message}"
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        ai_text = f"[error] {e}"
+
+    chat_history.save_message(session_id, 'assistant', ai_text)
+    history = chat_history.get_history(session_id)
+    return jsonify({'session_id': session_id, 'response': ai_text, 'history': history})
+
+@app.route('/history', methods=['GET'])
+def history():
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'session_id missing'}), 400
+    return jsonify({'session_id': session_id, 'history': chat_history.get_history(session_id)})
 
 @app.route('/change_subject', methods=['POST'])
 def change_subject():
@@ -196,22 +203,33 @@ def delete_uploaded_file(subject, filename):
     try:
         # Security: only allow deletion from Uploaded subfolder
         uploaded_folder = os.path.join(config.DOCS_ROOT_PATH, subject, "Uploaded")
-        file_path = os.path.join(uploaded_folder, filename)
+        safe_name = secure_filename(filename)
+        file_path = os.path.join(uploaded_folder, safe_name)
 
-        # Verify file exists and is in the correct folder
+        # Ensure file_path is inside uploaded_folder
+        if os.path.commonpath([os.path.abspath(file_path), os.path.abspath(uploaded_folder)]) != os.path.abspath(uploaded_folder):
+            return jsonify({'error': 'Acces interzis'}), 403
+
         if not os.path.exists(file_path):
             return jsonify({'error': 'Fișierul nu există'}), 404
 
-        if not file_path.startswith(uploaded_folder):
-            return jsonify({'error': 'Acces interzis'}), 403
-
-        # Delete file
         os.remove(file_path)
 
         return jsonify({'success': True, 'message': 'Fișier șters'})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/conversations', methods=['GET'])
+def conversations():
+    return jsonify({'conversations': chat_history.list_sessions()})
+
+@app.route('/delete_conversation', methods=['POST'])
+def delete_conversation():
+    sid = (request.json or {}).get('session_id')
+    if not sid: return jsonify({'error':'session_id missing'}), 400
+    chat_history.delete_session(sid)
+    return jsonify({'success': True})
 
 def process_document_background(task_id, file_path, subject):
     """Background task to process document"""
@@ -233,7 +251,10 @@ def process_document_background(task_id, file_path, subject):
             # Auto-reload RAG if processing for current subject
             if subject == current_subject:
                 update_progress(100, "Reîncărcare sistem RAG...")
-                rag_chain = initialize_rag_system(subject)
+                try:
+                    rag_chain = initialize_rag_system(subject)
+                except Exception as e:
+                    print(f"[app] error reinitializing rag: {e}")
 
         else:
             upload_tasks[task_id]['status'] = 'error'
@@ -246,8 +267,11 @@ def process_document_background(task_id, file_path, subject):
 if __name__ == '__main__':
     # Initialize RAG system on startup
     print("Initializing RAG system...")
-    rag_chain = initialize_rag_system(current_subject)
-    print(f"RAG system initialized for subject: {current_subject}")
+    try:
+        rag_chain = initialize_rag_system(current_subject)
+        print(f"RAG system initialized for subject: {current_subject}")
+    except Exception as e:
+        print(f"[app] warning: could not initialize RAG system: {e}. continuing with echo fallback.")
 
     # Run Flask app
     print("Starting Flask server on http://localhost:5000")

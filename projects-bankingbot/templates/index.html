@@ -2,8 +2,8 @@
 <html lang="ro">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Asistent AI Universitar</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -23,14 +23,20 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button id="new-conversation-btn" class="new-conversation-button">🔄 Conversație Nouă</button>
-                <button id="upload-btn" class="upload-button">📄 Încarcă Document</button>
-                <button id="view-files-btn" class="view-files-button">📂 Fișiere</button>
+
+                <!-- actions grouped and responsive -->
+                <div class="actions">
+                    <!-- use the original button-specific classes so CSS rules apply consistently -->
+                    <button id="new-conversation-btn" class="new-conversation-button">🔄 <span>Conversație Nouă</span></button>
+                    <button id="conversations-btn" class="conversations-button">🗂️ <span>Conversații</span></button>
+                    <button id="upload-btn" class="upload-button">📄 <span>Încarcă Document</span></button>
+                    <button id="view-files-btn" class="view-files-button">📂 <span>Fișiere</span></button>
+                </div>
             </div>
         </div>
 
         <div id="chat-box" class="chat-box">
-            <div class="message bot-message">
+            <div class="message bot-message" id="initial-bot">
                 Salut! Sunt asistentul tău AI. Întreabă-mă orice despre {{ current_subject }}.
             </div>
         </div>
@@ -40,11 +46,24 @@
             <button id="send-btn">Trimite</button>
         </div>
 
-        <div id="loading" class="loading">Procesez...</div>
+        <div id="loading" class="loading" style="display:none;">Procesez...</div>
+    </div>
+
+    <!-- Conversations Modal -->
+    <div id="conversations-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Conversații Salvate</h2>
+                <span class="close" id="conversations-close">&times;</span>
+            </div>
+            <div class="modal-body" id="conversations-list">
+                <p class="loading-convs">Încărcare conversații...</p>
+            </div>
+        </div>
     </div>
 
     <!-- Upload Modal -->
-    <div id="upload-modal" class="modal">
+    <div id="upload-modal" class="modal" style="display:none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Încarcă Document PDF</h2>
@@ -83,7 +102,7 @@
     </div>
 
     <!-- Files Modal -->
-    <div id="files-modal" class="modal">
+    <div id="files-modal" class="modal" style="display:none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Fișiere Încărcate</h2>
@@ -98,63 +117,101 @@
     </div>
 
     <script>
+        // Session + history keys
+        const SESSION_KEY = 'ai_session_id';
+        let sessionId = localStorage.getItem(SESSION_KEY);
+        if (!sessionId) {
+            sessionId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 's-' + Date.now();
+            localStorage.setItem(SESSION_KEY, sessionId);
+        }
+
+        // UI elements
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const subjectSelect = document.getElementById('subject-select');
+        if (subjectSelect) subjectSelect.addEventListener('change', changeSubject);
         const loading = document.getElementById('loading');
+        const initialBot = document.getElementById('initial-bot');
 
-        // Send message on button click
-        sendBtn.addEventListener('click', sendMessage);
-
-        // Send message on Enter key
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
+        // Render helpers
+        function createMessageElement(text, isBot = false, timestamp = null) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = text;
+            wrapper.appendChild(textDiv);
+            if (timestamp) {
+                const meta = document.createElement('div');
+                meta.className = 'message-meta';
+                meta.innerHTML = `<small>${new Date(timestamp).toLocaleString()}</small>`;
+                wrapper.appendChild(meta);
             }
-        });
+            return wrapper;
+        }
 
-        // Change subject
-        subjectSelect.addEventListener('change', changeSubject);
-
-        function addMessage(message, isBot = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
-            messageDiv.textContent = message;
-            chatBox.appendChild(messageDiv);
+        function renderMessage(text, isBot = false, timestamp = null) {
+            chatBox.appendChild(createMessageElement(text, isBot, timestamp));
             chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function renderHistory(history) {
+            chatBox.innerHTML = '';
+            const header = document.createElement('div');
+            header.id = 'initial-bot';
+            header.className = 'message bot-message';
+            header.textContent = `Salut! Sunt asistentul tău AI. Întreabă-mă orice despre ${subjectSelect.value}.`;
+            chatBox.appendChild(header);
+
+            for (const msg of history) {
+                const isBot = (msg.role && msg.role.toLowerCase().startsWith('assistant'));
+                const el = createMessageElement(msg.content, isBot, msg.created_at);
+                chatBox.appendChild(el);
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function loadHistory() {
+            try {
+                const resp = await fetch(`/history?session_id=${encodeURIComponent(sessionId)}`);
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (data.history && Array.isArray(data.history)) {
+                    renderHistory(data.history);
+                }
+            } catch (e) {
+                console.warn('Could not load history', e);
+            }
         }
 
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
-
-            // Add user message to chat
-            addMessage(message, false);
+            chatBox.appendChild(createMessageElement(message, false));
             userInput.value = '';
-
-            // Show loading
             loading.style.display = 'block';
             sendBtn.disabled = true;
 
             try {
-                const response = await fetch('/chat', {
+                const resp = await fetch('/chat', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ message: message })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ session_id: sessionId, message })
                 });
+                const data = await resp.json();
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    addMessage(data.response, true);
+                if (resp.ok) {
+                    if (data.history && Array.isArray(data.history)) {
+                        renderHistory(data.history);
+                    } else if (data.response) {
+                        chatBox.appendChild(createMessageElement(data.response, true));
+                    }
                 } else {
-                    addMessage('Eroare: ' + (data.error || 'Eroare necunoscută'), true);
+                    chatBox.appendChild(createMessageElement('Eroare: ' + (data.error || 'Eroare necunoscută'), true));
                 }
-            } catch (error) {
-                addMessage('Eroare: Nu m-am putut conecta la server', true);
+            } catch (e) {
+                chatBox.appendChild(createMessageElement('Eroare: Nu m-am putut conecta la server', true));
             } finally {
                 loading.style.display = 'none';
                 sendBtn.disabled = false;
@@ -162,39 +219,113 @@
             }
         }
 
+        function newConversation() {
+            if (!confirm('Sigur vrei să începi o conversație nouă?')) return;
+            sessionId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 's-' + Date.now();
+            localStorage.setItem(SESSION_KEY, sessionId);
+            chatBox.innerHTML = `<div class="message bot-message" id="initial-bot">Salut! Sunt asistentul tău AI. Întreabă-mă orice despre ${subjectSelect.value}.</div>`;
+            userInput.focus();
+        }
+
         async function changeSubject() {
             const newSubject = subjectSelect.value;
             loading.style.display = 'block';
             sendBtn.disabled = true;
-
             try {
-                const response = await fetch('/change_subject', {
+                const resp = await fetch('/change_subject', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ subject: newSubject })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({subject: newSubject})
                 });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    addMessage(`Am trecut la ${newSubject}. Cu ce te pot ajuta?`, true);
+                if (resp.ok) {
+                    initialBot.textContent = `Salut! Sunt asistentul tău AI. Întreabă-mă orice despre ${newSubject}.`;
+                    await loadHistory();
+                    chatBox.appendChild(createMessageElement(`Am trecut la ${newSubject}. Cu ce te pot ajuta?`, true));
                 } else {
-                    addMessage('Eroare la schimbarea materiei: ' + (data.error || 'Eroare necunoscută'), true);
+                    const data = await resp.json();
+                    chatBox.appendChild(createMessageElement('Eroare la schimbarea materiei: ' + (data.error || 'Eroare'), true));
                 }
-            } catch (error) {
-                addMessage('Eroare: Nu m-am putut conecta la server', true);
+            } catch (e) {
+                chatBox.appendChild(createMessageElement('Eroare: Nu m-am putut conecta la server', true));
             } finally {
                 loading.style.display = 'none';
                 sendBtn.disabled = false;
             }
         }
 
-        // Upload functionality
+        // Conversations UI
+        const convsBtn = document.getElementById('conversations-btn');
+        const convsModal = document.getElementById('conversations-modal');
+        const convsClose = document.getElementById('conversations-close');
+        const convsList = document.getElementById('conversations-list');
+
+        if (convsBtn) convsBtn.addEventListener('click', openConversations);
+        if (convsClose) convsClose.addEventListener('click', () => convsModal.style.display = 'none');
+        window.addEventListener('click', (e) => { if (e.target === convsModal) convsModal.style.display = 'none'; });
+
+        async function openConversations() {
+            convsModal.style.display = 'block';
+            convsList.innerHTML = '<p class="loading-convs">Încărcare conversații...</p>';
+            try {
+                const resp = await fetch('/conversations');
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Eroare');
+                if (!data.conversations || data.conversations.length === 0) {
+                    convsList.innerHTML = '<p>Nu există conversații salvate.</p>';
+                    return;
+                }
+                convsList.innerHTML = data.conversations.map(c => {
+                    const shortId = c.session_id.slice(0, 8);
+                    const last = c.last_at ? new Date(c.last_at).toLocaleString() : '';
+                    return `
+                        <div class="conv-item" data-session="${c.session_id}">
+                            <div class="conv-meta"><strong>${shortId}</strong> • ${c.messages} mesaje ${last ? '• ' + last : ''}</div>
+                            <div class="conv-actions">
+                                <button class="open-conv">Deschide</button>
+                                <button class="del-conv">Șterge</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                convsList.querySelectorAll('.open-conv').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const sid = e.target.closest('.conv-item').dataset.session;
+                        sessionId = sid;
+                        localStorage.setItem(SESSION_KEY, sessionId);
+                        loadHistory();
+                        convsModal.style.display = 'none';
+                    });
+                });
+                convsList.querySelectorAll('.del-conv').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const sid = e.target.closest('.conv-item').dataset.session;
+                        if (!confirm('Sigur vrei să ștergi această conversație?')) return;
+                        try {
+                            const resp = await fetch('/delete_conversation', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({session_id: sid})
+                            });
+                            if (resp.ok) openConversations(); else {
+                                const d = await resp.json();
+                                alert('Eroare: ' + (d.error || 'Eroare'));
+                            }
+                        } catch (err) {
+                            alert('Eroare la ștergere');
+                        }
+                    });
+                });
+
+            } catch (err) {
+                convsList.innerHTML = '<p>Eroare la încărcare conversații</p>';
+            }
+        }
+
+        // Upload/files UI (kept)
         const uploadBtn = document.getElementById('upload-btn');
         const uploadModal = document.getElementById('upload-modal');
-        const closeModal = document.querySelector('.close');
+        const closeModal = uploadModal ? uploadModal.querySelector('.close') : null;
         const uploadForm = document.getElementById('upload-form');
         const pdfFile = document.getElementById('pdf-file');
         const fileName = document.getElementById('file-name');
@@ -206,68 +337,48 @@
         let currentTaskId = null;
         let pollingInterval = null;
 
-        // Show modal
-        uploadBtn.addEventListener('click', () => {
+        if (uploadBtn) uploadBtn.addEventListener('click', () => {
+            if (!uploadModal) return;
             uploadModal.style.display = 'block';
-            uploadProgressSection.style.display = 'none';
-            uploadForm.style.display = 'block';
-            pdfFile.value = '';
-            fileName.textContent = '';
+            if (uploadProgressSection) uploadProgressSection.style.display = 'none';
+            if (uploadForm) uploadForm.style.display = 'block';
+            if (pdfFile) pdfFile.value = '';
+            if (fileName) fileName.textContent = '';
         });
 
-        // Close modal
-        closeModal.addEventListener('click', () => {
-            uploadModal.style.display = 'none';
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
+        if (closeModal) closeModal.addEventListener('click', () => {
+            if (uploadModal) uploadModal.style.display = 'none';
+            if (pollingInterval) clearInterval(pollingInterval);
         });
 
-        // Click outside modal to close
         window.addEventListener('click', (e) => {
             if (e.target === uploadModal) {
                 uploadModal.style.display = 'none';
-                if (pollingInterval) {
-                    clearInterval(pollingInterval);
-                }
+                if (pollingInterval) clearInterval(pollingInterval);
             }
+            if (e.target === convsModal) convsModal.style.display = 'none';
         });
 
-        // Show selected file name
-        pdfFile.addEventListener('change', () => {
-            if (pdfFile.files.length > 0) {
-                fileName.textContent = pdfFile.files[0].name;
-            } else {
-                fileName.textContent = '';
-            }
+        if (pdfFile) pdfFile.addEventListener('change', () => {
+            if (pdfFile.files.length > 0) fileName.textContent = pdfFile.files[0].name;
+            else fileName.textContent = '';
         });
 
-        // Handle upload
-        uploadForm.addEventListener('submit', async (e) => {
+        if (uploadForm) uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            if (!pdfFile.files.length) {
-                alert('Selectează un fișier PDF');
-                return;
-            }
+            if (!pdfFile || !pdfFile.files.length) { alert('Selectează un fișier PDF'); return; }
 
             const formData = new FormData();
             formData.append('file', pdfFile.files[0]);
             formData.append('subject', document.getElementById('upload-subject').value);
 
-            // Hide form, show progress
             uploadForm.style.display = 'none';
             uploadProgressSection.style.display = 'block';
             updateProgress(0, 'Încărcare fișier...');
 
             try {
-                const response = await fetch('/upload_document', {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch('/upload_document', { method: 'POST', body: formData });
                 const data = await response.json();
-
                 if (response.ok && data.success) {
                     currentTaskId = data.task_id;
                     startPolling();
@@ -276,7 +387,7 @@
                     uploadProgressSection.style.display = 'none';
                     uploadForm.style.display = 'block';
                 }
-            } catch (error) {
+            } catch (e) {
                 alert('Eroare: Nu m-am putut conecta la server');
                 uploadProgressSection.style.display = 'none';
                 uploadForm.style.display = 'block';
@@ -284,9 +395,9 @@
         });
 
         function updateProgress(percent, message) {
-            progressBar.style.width = percent + '%';
-            progressPercent.textContent = percent + '%';
-            progressMessage.textContent = message;
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (progressPercent) progressPercent.textContent = percent + '%';
+            if (progressMessage) progressMessage.textContent = message;
         }
 
         function startPolling() {
@@ -294,15 +405,13 @@
                 try {
                     const response = await fetch(`/upload_progress/${currentTaskId}`);
                     const data = await response.json();
-
                     if (response.ok) {
                         updateProgress(data.progress, data.message);
-
                         if (data.status === 'done') {
                             clearInterval(pollingInterval);
                             setTimeout(() => {
-                                uploadModal.style.display = 'none';
-                                addMessage('✓ ' + data.message, true);
+                                if (uploadModal) uploadModal.style.display = 'none';
+                                renderMessage('✓ ' + data.message, true);
                             }, 1500);
                         } else if (data.status === 'error') {
                             clearInterval(pollingInterval);
@@ -311,54 +420,30 @@
                             uploadForm.style.display = 'block';
                         }
                     }
-                } catch (error) {
-                    console.error('Polling error:', error);
+                } catch (e) {
+                    console.error('Polling error:', e);
                 }
-            }, 500); // Poll every 500ms
+            }, 500);
         }
 
-        // New Conversation functionality
-        const newConversationBtn = document.getElementById('new-conversation-btn');
-        newConversationBtn.addEventListener('click', () => {
-            if (confirm('Sigur vrei să ștergi conversația curentă?')) {
-                // Clear all messages except the initial bot message
-                chatBox.innerHTML = '<div class="message bot-message">Salut! Sunt asistentul tău AI. Întreabă-mă orice despre ' + subjectSelect.value + '.</div>';
-            }
-        });
-
-        // Files modal functionality
+        // Files modal
         const viewFilesBtn = document.getElementById('view-files-btn');
         const filesModal = document.getElementById('files-modal');
         const filesClose = document.getElementById('files-close');
         const filesList = document.getElementById('files-list');
 
-        viewFilesBtn.addEventListener('click', () => {
-            filesModal.style.display = 'block';
-            loadUploadedFiles();
-        });
-
-        filesClose.addEventListener('click', () => {
-            filesModal.style.display = 'none';
-        });
-
-        window.addEventListener('click', (e) => {
-            if (e.target === filesModal) {
-                filesModal.style.display = 'none';
-            }
-        });
+        if (viewFilesBtn) viewFilesBtn.addEventListener('click', () => { if (filesModal) filesModal.style.display = 'block'; loadUploadedFiles(); });
+        if (filesClose) filesClose.addEventListener('click', () => filesModal.style.display = 'none');
 
         async function loadUploadedFiles() {
             const subject = subjectSelect.value;
             filesList.innerHTML = '<p class="loading-files">Încărcare fișiere...</p>';
-
             try {
-                const response = await fetch(`/uploaded_files/${subject}`);
-                const data = await response.json();
-
-                if (response.ok && data.files) {
-                    if (data.files.length === 0) {
-                        filesList.innerHTML = '<p class="no-files">Nu există fișiere încărcate pentru această materie.</p>';
-                    } else {
+                const resp = await fetch(`/uploaded_files/${subject}`);
+                const data = await resp.json();
+                if (resp.ok && data.files) {
+                    if (data.files.length === 0) filesList.innerHTML = '<p class="no-files">Nu există fișiere încărcate pentru această materie.</p>';
+                    else {
                         let filesHtml = '';
                         data.files.forEach(file => {
                             const date = new Date(file.uploaded_date * 1000).toLocaleDateString('ro-RO');
@@ -373,8 +458,6 @@
                             `;
                         });
                         filesList.innerHTML = filesHtml;
-
-                        // Add delete functionality
                         document.querySelectorAll('.delete-file-btn').forEach(btn => {
                             btn.addEventListener('click', () => deleteFile(btn.dataset.filename));
                         });
@@ -382,36 +465,35 @@
                 } else {
                     filesList.innerHTML = '<p class="error-files">Eroare la încărcarea fișierelor</p>';
                 }
-            } catch (error) {
+            } catch (e) {
                 filesList.innerHTML = '<p class="error-files">Eroare la încărcarea fișierelor</p>';
             }
         }
 
         async function deleteFile(filename) {
-            if (!confirm(`Sigur vrei să ștergi ${filename}?`)) {
-                return;
-            }
-
+            if (!confirm(`Sigur vrei să ștergi ${filename}?`)) return;
             const subject = subjectSelect.value;
-
             try {
-                const response = await fetch(`/delete_file/${subject}/${encodeURIComponent(filename)}`, {
-                    method: 'DELETE'
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    loadUploadedFiles(); // Reload the list
-                    addMessage(`✓ ${filename} a fost șters`, true);
+                const resp = await fetch(`/delete_file/${subject}/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    loadUploadedFiles();
+                    renderMessage(`✓ ${filename} a fost șters`, true);
                 } else {
                     alert('Eroare: ' + (data.error || 'Nu s-a putut șterge fișierul'));
                 }
-            } catch (error) {
+            } catch (e) {
                 alert('Eroare: Nu m-am putut conecta la server');
             }
         }
+
+        // Wire events (send, Enter key, new conversation)
+        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+        if (userInput) userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
+        const newConvBtn = document.getElementById('new-conversation-btn');
+        if (newConvBtn) newConvBtn.addEventListener('click', newConversation);
+
+        // Load history on page load
+        window.addEventListener('load', () => { loadHistory(); });
     </script>
 </body>
-
-</html>
