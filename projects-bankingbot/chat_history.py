@@ -31,6 +31,7 @@ def save_message(session_id: str, role: str, content: str, path: str = DB_FILE):
     conn.commit()
     conn.close()
 
+# Retrieve chat history for a session
 def get_history(session_id: str, limit: int = 200, path: str = DB_FILE) -> List[Dict]:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row

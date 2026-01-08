@@ -9,6 +9,7 @@ import uuid
 import threading
 import chat_history
 
+# Initialize chat history database
 chat_history.init_db()
 
 app = Flask(__name__)

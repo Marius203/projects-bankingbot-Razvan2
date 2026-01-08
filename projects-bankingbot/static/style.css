@@ -591,7 +591,7 @@ body {
     .header-controls .actions button span { display: none; }
 }
 
-
+/* Subject selector spacing from title */
 .subject-selector {
     display: flex;
     align-items: center;
